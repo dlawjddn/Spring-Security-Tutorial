@@ -13,4 +13,16 @@ public class SecurityController {
     public String loginPage(){
         return "login-page";
     }
+    @GetMapping("/user")
+    public String user(){
+        return "user-page";
+    }
+    @GetMapping("/admin/pay")
+    public String onlyAdmin(){
+        return "only admin";
+    }
+    @GetMapping("/admin")
+    public String exceptUser(){
+        return "except user";
+    }
 }
