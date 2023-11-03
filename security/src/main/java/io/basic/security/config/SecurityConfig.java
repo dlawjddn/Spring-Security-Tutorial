@@ -4,6 +4,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import lombok.Builder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,7 +13,10 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -21,26 +25,58 @@ import org.springframework.security.web.authentication.logout.LogoutSuccessHandl
 import org.springframework.security.web.util.matcher.IpAddressMatcher;
 
 import java.io.IOException;
-
+@Builder
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
     private final UserDetailsService userDetailsService;
 
+
     public SecurityConfig(UserDetailsService userDetailsService) {
         this.userDetailsService = userDetailsService;
     }
+    @Bean
+    public static UserDetailsService createUser(){
+        /**
+         * 메모리의 가상의 사용자들을 생성 -> 빈으로 등록하여 따로 처리 과정이 필요없음
+         */
+        UserDetails user = User.builder()
+                .username("user")
+                .password("{noop}dlawjddn")
+                .roles("USER")
+                .build();
+
+        UserDetails sys = User.builder()
+                .username("sys")
+                .password("{noop}system")
+                .roles("SYS")
+                .build();
+
+        UserDetails admin = User.builder()
+                .username("admin")
+                .password("{noop}admin")
+                .roles("USER", "SYS", "ADMIN")
+                .build();
+        return new InMemoryUserDetailsManager(user, sys, admin);
+    }
+
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         IpAddressMatcher hasIpAddress = new IpAddressMatcher("127.0.0.1");
         http
                 //.authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+//                .authorizeHttpRequests(auth -> auth
+//                        .requestMatchers("/shop/login", "/shop/user").permitAll()
+//                        .requestMatchers("/shop/mypage").hasRole("USER")
+//                        .requestMatchers("/shop/access/pay").access(((authentication, context) ->
+//                                new AuthorizationDecision(hasIpAddress.matches(context.getRequest()))))
+//                        .anyRequest().authenticated())
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/shop/login", "/shop/user").permitAll()
-                        .requestMatchers("/shop/mypage").hasRole("USER")
-                        .requestMatchers("/shop/access/pay").access(((authentication, context) ->
-                                new AuthorizationDecision(hasIpAddress.matches(context.getRequest()))))
+                        .requestMatchers("/user/**").hasRole("USER")
+                        .requestMatchers("/admin/pay").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SYS")
                         .anyRequest().authenticated())
                 /**
                  *  hasRole() -> 사용자의 권한을 의미함
