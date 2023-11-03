@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.Authentication;
@@ -16,6 +18,7 @@ import org.springframework.security.web.authentication.AuthenticationFailureHand
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.util.matcher.IpAddressMatcher;
 
 import java.io.IOException;
 
@@ -30,10 +33,24 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        IpAddressMatcher hasIpAddress = new IpAddressMatcher("127.0.0.1");
         http
-                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                //.authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/shop/login", "/shop/user").permitAll()
+                        .requestMatchers("/shop/mypage").hasRole("USER")
+                        .requestMatchers("/shop/access/pay").access(((authentication, context) ->
+                                new AuthorizationDecision(hasIpAddress.matches(context.getRequest()))))
+                        .anyRequest().authenticated())
+                /**
+                 *  hasRole() -> 사용자의 권한을 의미함
+                 *  hasAuthority() -> 읽기, 쓰기, 수정의 권한을 의미함
+                 *  access() -> http 요청의 경로나 ip 주소 등 상세 정보로 인한 인
+                 *
+                 *  설정 시에 구체적인 경로가 우선적으로 나오고 큰 범위의 경로가 나중에 나오게 해야함
+                 */
                 .formLogin(form -> form
-                        //.loginPage("/login-page")
+                        //.loginPage("/login-page") -> 내가 커스텀한 로그인 페이지로 가는 경우, 지정하지 않으면 spring security에서 기본 제공하는 페이지로 넘어감
                         .defaultSuccessUrl("/")
                         .failureUrl("/login-page")
                         .usernameParameter("userId")
@@ -71,11 +88,20 @@ public class SecurityConfig {
                                 response.sendRedirect("/login");
                             }
                         })
-                        .deleteCookies("remember me"))
+                )//.deleteCookies("remember me"))
                 .rememberMe(remember -> remember
                         .tokenValiditySeconds(3600)
                         .rememberMeParameter("remember me")
-                        .userDetailsService(userDetailsService));
+                        .userDetailsService(userDetailsService))
+                .sessionManagement(sManage -> sManage
+                                .sessionFixation(sessionFix -> sessionFix
+                                        .newSession())
+                        .maximumSessions(1)
+                        .maxSessionsPreventsLogin(false));
+                        // maxSessionPreventsLogin: true -> 새 인증 요청한 사용자 거부
+                        // maxSessionPreventsLogin: false -> 기존 인증 받은 사용자 거부
+
+
 
         return http.build();
     }
