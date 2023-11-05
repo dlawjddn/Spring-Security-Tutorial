@@ -9,6 +9,10 @@ public class SecurityController {
     public String defaultHome(){
         return "home";
     }
+    @GetMapping("/login")
+    public String login(){
+        return "login";
+    }
     @GetMapping("/login-page")
     public String loginPage(){
         return "login-page";
@@ -24,5 +28,9 @@ public class SecurityController {
     @GetMapping("/admin")
     public String exceptUser(){
         return "except user";
+    }
+    @GetMapping("/denied")
+    public String denied(){
+        return "forbidden, you are denied";
     }
 }
