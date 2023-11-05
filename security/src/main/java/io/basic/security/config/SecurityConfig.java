@@ -1,5 +1,7 @@
 package io.basic.security.config;
 
+import io.basic.security.exception.auth.AccessDenyHandler;
+import io.basic.security.exception.auth.AuthEntryPoint;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -7,8 +9,6 @@ import jakarta.servlet.http.HttpSession;
 import lombok.Builder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.Authentication;
@@ -22,6 +22,8 @@ import org.springframework.security.web.authentication.AuthenticationFailureHand
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.util.matcher.IpAddressMatcher;
 
 import java.io.IOException;
@@ -30,15 +32,19 @@ import java.io.IOException;
 @EnableWebSecurity
 public class SecurityConfig {
     private final UserDetailsService userDetailsService;
+    private final AuthEntryPoint authEntryPoint;
+    private final AccessDenyHandler accessDenyHandler;
 
 
-    public SecurityConfig(UserDetailsService userDetailsService) {
+    public SecurityConfig(UserDetailsService userDetailsService, AuthEntryPoint authEntryPoint, AccessDenyHandler accessDenyHandler) {
         this.userDetailsService = userDetailsService;
+        this.authEntryPoint = authEntryPoint;
+        this.accessDenyHandler = accessDenyHandler;
     }
     @Bean
     public static UserDetailsService createUser(){
         /**
-         * 메모리의 가상의 사용자들을 생성 -> 빈으로 등록하여 따로 처리 과정이 필요없음
+         * 메모리의 가상의 사용자들을 생성 -> 빈으로 등록하여 따로 처리 과정이 필요없다
          */
         UserDetails user = User.builder()
                 .username("user")
@@ -74,6 +80,7 @@ public class SecurityConfig {
 //                        .anyRequest().authenticated())
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/login").permitAll()
                         .requestMatchers("/user/**").hasRole("USER")
                         .requestMatchers("/admin/pay").hasRole("ADMIN")
                         .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SYS")
@@ -86,7 +93,7 @@ public class SecurityConfig {
                  *  설정 시에 구체적인 경로가 우선적으로 나오고 큰 범위의 경로가 나중에 나오게 해야함
                  */
                 .formLogin(form -> form
-                        //.loginPage("/login-page") -> 내가 커스텀한 로그인 페이지로 가는 경우, 지정하지 않으면 spring security에서 기본 제공하는 페이지로 넘어감
+                        //.loginPage("/login-page") //-> 내가 커스텀한 로그인 페이지로 가는 경우, 지정하지 않으면 spring security에서 기본 제공하는 페이지로 넘어감
                         .defaultSuccessUrl("/")
                         .failureUrl("/login-page")
                         .usernameParameter("userId")
@@ -94,8 +101,16 @@ public class SecurityConfig {
                         .successHandler(new AuthenticationSuccessHandler() {
                             @Override
                             public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
-                                System.out.println("authentication is successed: " + authentication.getName());
-                                response.sendRedirect("/");
+                                RequestCache requestCache = new HttpSessionRequestCache();
+                                HttpServletRequest savedRequest = requestCache.getMatchingRequest(request, response);
+                                if (savedRequest == null){
+                                    System.out.println("authentication is successed: " + authentication.getName());
+                                    response.sendRedirect("/");
+                                } else{
+                                    String requestURI = savedRequest.getRequestURI();
+                                    response.sendRedirect(requestURI);
+                                }
+
                             }
                         })
                         .failureHandler(new AuthenticationFailureHandler() {
@@ -133,9 +148,13 @@ public class SecurityConfig {
                                 .sessionFixation(sessionFix -> sessionFix
                                         .newSession())
                         .maximumSessions(1)
-                        .maxSessionsPreventsLogin(false));
+                        .maxSessionsPreventsLogin(false))
                         // maxSessionPreventsLogin: true -> 새 인증 요청한 사용자 거부
                         // maxSessionPreventsLogin: false -> 기존 인증 받은 사용자 거부
+
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(authEntryPoint)
+                        .accessDeniedHandler(accessDenyHandler));
 
 
 
