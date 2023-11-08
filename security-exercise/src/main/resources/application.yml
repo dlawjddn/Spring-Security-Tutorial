@@ -1,4 +1,8 @@
 spring:
+  security:
+    user:
+      name: dlawjddn
+      password: dlawjddn
   datasource:
     url: jdbc:mysql://localhost:3306/security
     username: root
@@ -6,7 +10,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: create
     properties:
       hibernate:
         show_sql: true
@@ -14,3 +18,10 @@ spring:
         highlight_sql: true
         use_sql_comments: true
         dialect: org.hibernate.dialect.MySQL8Dialect
+  thymeleaf:
+    cache: false
+  devtools:
+    livereload:
+      enabled: true
+    restart:
+      enabled: true
