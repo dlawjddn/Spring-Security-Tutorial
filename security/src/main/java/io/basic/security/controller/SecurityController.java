@@ -9,10 +9,10 @@ public class SecurityController {
     public String defaultHome(){
         return "home";
     }
-    @GetMapping("/login")
-    public String login(){
-        return "login";
-    }
+//    @GetMapping("/login")
+//    public String login(){
+//        return "login";
+//    }
     @GetMapping("/login-page")
     public String loginPage(){
         return "login-page";
@@ -21,6 +21,8 @@ public class SecurityController {
     public String user(){
         return "user-page";
     }
+    @GetMapping("/system")
+    public String system(){return "system-page";}
     @GetMapping("/admin/pay")
     public String onlyAdmin(){
         return "only admin";
