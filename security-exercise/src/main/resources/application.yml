@@ -25,3 +25,7 @@ spring:
       enabled: true
     restart:
       enabled: true
+
+logging:
+  level:
+    web: debug
